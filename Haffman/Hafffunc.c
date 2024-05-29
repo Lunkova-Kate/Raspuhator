@@ -1,7 +1,27 @@
-#include "haff.h"
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdint.h>
 
-//Кодировщик: считать файл
-// Функция для чтения файла в бинарном режиме
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+//Р Р°СЃРїСѓС…Р°С‚РµР»СЊ РҐР°С„С„РјР°РЅР°(РїСЂРѕРІРµСЂСЏРµС‚СЃСЏ РІ СЂСѓС‡РЅРѕРј СЂРµР¶РёРјРµ)
+
+#define BYTE_RANGE 256 // РљРѕР»РёС‡РµСЃС‚РІРѕ РІРѕР·РјРѕР¶РЅС‹С… Р±Р°Р№С‚РѕРІ (РѕС‚ 0 РґРѕ 255)
+
+// РЎС‚СЂСѓРєС‚СѓСЂР° РґР»СЏ С…СЂР°РЅРµРЅРёСЏ С‡Р°СЃС‚РѕС‚С‹ Р±Р°Р№С‚РѕРІ
+typedef struct {
+    unsigned char byte;
+    long frequency;
+} ByteFrequency;
+// РЎС‚СЂСѓРєС‚СѓСЂР° РґР»СЏ С…СЂР°РЅРµРЅРёСЏ СѓР·Р»Р° РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР°
+typedef struct Node {
+    unsigned char byte;
+    long frequency;
+    struct Node* left, * right;
+} Node;
+//РљРѕРґРёСЂРѕРІС‰РёРє: СЃС‡РёС‚Р°С‚СЊ С„Р°Р№Р»
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ С‡С‚РµРЅРёСЏ С„Р°Р№Р»Р° РІ Р±РёРЅР°СЂРЅРѕРј СЂРµР¶РёРјРµ
 unsigned char* read_file_binary(const char* filename, long* file_size) {
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
@@ -12,7 +32,6 @@ unsigned char* read_file_binary(const char* filename, long* file_size) {
     fseek(file, 0, SEEK_END);
     *file_size = ftell(file);
     rewind(file);
-    // на память
     unsigned char* buffer = (unsigned char*)malloc(sizeof(unsigned char) * (*file_size));
     if (buffer == NULL) {
         fprintf(stderr, "Memory error");
@@ -24,21 +43,21 @@ unsigned char* read_file_binary(const char* filename, long* file_size) {
     return buffer;
 }
 
-//Кодировщик : построить таблицу частот:
-    // Функция для сравнения частот байтов для сортировки
+//РљРѕРґРёСЂРѕРІС‰РёРє : РїРѕСЃС‚СЂРѕРёС‚СЊ С‚Р°Р±Р»РёС†Сѓ С‡Р°СЃС‚РѕС‚:
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ С‡Р°СЃС‚РѕС‚ Р±Р°Р№С‚РѕРІ РґР»СЏ СЃРѕСЂС‚РёСЂРѕРІРєРё
 int compare_byte_frequencies(const void* a, const void* b) {
     long freq_a = ((ByteFrequency*)a)->frequency;
     long freq_b = ((ByteFrequency*)b)->frequency;
     return (freq_b > freq_a) - (freq_b < freq_a);
 }
 
-// Функция для подсчета и сортировки частот байтов
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕРґСЃС‡РµС‚Р° Рё СЃРѕСЂС‚РёСЂРѕРІРєРё С‡Р°СЃС‚РѕС‚ Р±Р°Р№С‚РѕРІ
 void count_and_sort_byte_frequencies(const unsigned char* data, long file_size, ByteFrequency* frequencies) {
     memset(frequencies, 0, BYTE_RANGE * sizeof(ByteFrequency));
 
-    // Подсчет частот
+    // РџРѕРґСЃС‡РµС‚ С‡Р°СЃС‚РѕС‚
     for (long i = 0; i < file_size; ++i) {
-        //получили байтик и увеличиваем частоту
+        //РїРѕР»СѓС‡РёР»Рё Р±Р°Р№С‚РёРє Рё СѓРІРµР»РёС‡РёРІР°РµРј С‡Р°СЃС‚РѕС‚Сѓ
         unsigned char currentByte = data[i];
         frequencies[currentByte].byte = currentByte;
         frequencies[currentByte].frequency++;
@@ -46,22 +65,8 @@ void count_and_sort_byte_frequencies(const unsigned char* data, long file_size, 
     }
     qsort(frequencies, BYTE_RANGE, sizeof(ByteFrequency), compare_byte_frequencies);
 }
-//Кодировщик : построить дерево
-
-
-
-/*
-   // Функция для подсчета количества узлов в дереве Хаффмана
-int count_nodes_in_huffman_tree(const ByteFrequency* frequencies) {
-    int nodes_count = 0;
-    for (int i = 0; i < BYTE_RANGE; ++i) {
-        if (frequencies[i].frequency > 0) {
-            nodes_count++;
-        }
-    }
-    return nodes_count;
-}*/
-// Функция для создания нового узла дерева Хаффмана
+//РљРѕРґРёСЂРѕРІС‰РёРє : РїРѕСЃС‚СЂРѕРёС‚СЊ РґРµСЂРµРІРѕ
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ СЃРѕР·РґР°РЅРёСЏ РЅРѕРІРѕРіРѕ СѓР·Р»Р° РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР°
 Node* createNode(unsigned char byte, long frequency) {
     Node* node = (Node*)malloc(sizeof(Node));
     node->byte = byte;
@@ -69,13 +74,13 @@ Node* createNode(unsigned char byte, long frequency) {
     node->left = node->right = NULL;
     return node;
 }
-// Функция для сравнения узлов по частоте
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ СѓР·Р»РѕРІ РїРѕ С‡Р°СЃС‚РѕС‚Рµ
 int compareNodes(const void* a, const void* b) {
     Node* nodeA = *(Node**)a;
     Node* nodeB = *(Node**)b;
     return (nodeA->frequency > nodeB->frequency) - (nodeA->frequency < nodeB->frequency);
 }
-// Функция для построения дерева Хаффмана
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕСЃС‚СЂРѕРµРЅРёСЏ РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР°
 Node* buildHuffmanTree(ByteFrequency* frequencies, int size) {
     Node** nodes = (Node**)malloc(size * sizeof(Node*));
     int count = 0;
@@ -87,7 +92,7 @@ Node* buildHuffmanTree(ByteFrequency* frequencies, int size) {
     }
 
     if (count == 1) {
-        // Если только один узел, вернуть его
+        // Р•СЃР»Рё С‚РѕР»СЊРєРѕ РѕРґРёРЅ СѓР·РµР», РІРµСЂРЅСѓС‚СЊ РµРіРѕ
         Node* root = nodes[0];
         free(nodes);
         return root;
@@ -102,12 +107,12 @@ Node* buildHuffmanTree(ByteFrequency* frequencies, int size) {
         new_node->left = left;
         new_node->right = right;
 
-        // Перемещаем оставшиеся узелки  на одну позицию влево
+        // РџРµСЂРµРјРµС‰Р°РµРј РѕСЃС‚Р°РІС€РёРµСЃСЏ СѓР·РµР»РєРё  РЅР° РѕРґРЅСѓ РїРѕР·РёС†РёСЋ РІР»РµРІРѕ
         for (int i = 2; i < count; ++i) {
             nodes[i - 2] = nodes[i];
         }
         nodes[count - 2] = new_node;
-        nodes[count - 1] = NULL; // Чистим последнее
+        nodes[count - 1] = NULL; // Р§РёСЃС‚РёРј РїРѕСЃР»РµРґРЅРµРµ
 
         count--;
     }
@@ -117,16 +122,16 @@ Node* buildHuffmanTree(ByteFrequency* frequencies, int size) {
 
     return root;
 }
-// Функция для кодирования дерева Хаффмана
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РєРѕРґРёСЂРѕРІР°РЅРёСЏ РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР°
 
-// Функция для очистки дерева Хаффмана
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РѕС‡РёСЃС‚РєРё РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР°
 void freeHuffmanTree(Node* node) {
     if (node == NULL) return;
     freeHuffmanTree(node->left);
     freeHuffmanTree(node->right);
     free(node);
 }
-// Функция для вывода дерева Хаффмана (для отладки)
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РІС‹РІРѕРґР° РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР° (РґР»СЏ РѕС‚Р»Р°РґРєРё)
 void printHuffmanTree(Node* node, int depth) {
     if (node == NULL) return;
     for (int i = 0; i < depth; ++i) printf("  ");
@@ -139,8 +144,8 @@ void printHuffmanTree(Node* node, int depth) {
     printHuffmanTree(node->left, depth + 1);
     printHuffmanTree(node->right, depth + 1);
 }
-//Кодировщик : построить коды Хаффмана
-// Функция для кодирования дерева Хаффмана
+//РљРѕРґРёСЂРѕРІС‰РёРє : РїРѕСЃС‚СЂРѕРёС‚СЊ РєРѕРґС‹ РҐР°С„С„РјР°РЅР°
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РєРѕРґРёСЂРѕРІР°РЅРёСЏ РґРµСЂРµРІР° РҐР°С„С„РјР°РЅР°
 void encodeHuffmanTree(Node* node, char* haffmancode, char** codes, int depth) {
     if (node == NULL) return;
     if (node->left == NULL && node->right == NULL) {
@@ -153,19 +158,15 @@ void encodeHuffmanTree(Node* node, char* haffmancode, char** codes, int depth) {
         haffmancode[depth] = '1';
         encodeHuffmanTree(node->right, haffmancode, codes, depth + 1);
     }
-    haffmancode[depth] = '\0'; // Возвращаем haffmancode к предыдущему состоянию
+    haffmancode[depth] = '\0'; // Р’РѕР·РІСЂР°С‰Р°РµРј haffmancode Рє РїСЂРµРґС‹РґСѓС‰РµРјСѓ СЃРѕСЃС‚РѕСЏРЅРёСЋ
 }
-// Функция для записи размера файла в байтах в файл
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ Р·Р°РїРёСЃРё СЂР°Р·РјРµСЂР° С„Р°Р№Р»Р° РІ Р±Р°Р№С‚Р°С… РІ С„Р°Р№Р»
 void writeFileSizeToFile(FILE* file, uint32_t fileSize) {
-    // Записываем размер файла в байтах в файл
+    // Р—Р°РїРёСЃС‹РІР°РµРј СЂР°Р·РјРµСЂ С„Р°Р№Р»Р° РІ Р±Р°Р№С‚Р°С… РІ С„Р°Р№Р»
     fwrite(&fileSize, sizeof(uint32_t), 1, file);
 }
-
-
-
-//Кодировщик : закодировать файл(таблица + данные без упаковки битов)
-
-// Функция для кодирования файла
+//РљРѕРґРёСЂРѕРІС‰РёРє : Р·Р°РєРѕРґРёСЂРѕРІР°С‚СЊ С„Р°Р№Р»(С‚Р°Р±Р»РёС†Р° + РґР°РЅРЅС‹Рµ Р±РµР· СѓРїР°РєРѕРІРєРё Р±РёС‚РѕРІ)
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РєРѕРґРёСЂРѕРІР°РЅРёСЏ С„Р°Р№Р»Р°
 void encodeFile(const char* inputFilename, const char* outputFilename, Node* huffmanTree, char** codes) {
     long fileSize;
     unsigned char* data = read_file_binary(inputFilename, &fileSize);
@@ -182,38 +183,45 @@ void encodeFile(const char* inputFilename, const char* outputFilename, Node* huf
 
     writeFileSizeToFile(outputFile, fileSize);
 
-    // Создание таблицы кодов Хаффмана
+    // РЎРѕР·РґР°РЅРёРµ С‚Р°Р±Р»РёС†С‹ РєРѕРґРѕРІ РҐР°С„С„РјР°РЅР°
     char haffmancode[BYTE_RANGE] = { 0 };
     encodeHuffmanTree(huffmanTree, haffmancode, codes, 0);
 
-    // Кодирование файла
+    // РљРѕРґРёСЂРѕРІР°РЅРёРµ С„Р°Р№Р»Р°
     for (long i = 0; i < fileSize; ++i) {
         const char* code = codes[data[i]];
-        fwrite(code, strlen(code), 1, outputFile);
+        if (code != NULL) {
+            fwrite(code, strlen(code), 1, outputFile);
+        }
     }
 
     fclose(outputFile);
     free(data);
 }
 
-//Декодировщик : считать таблицу частот
-// 
-// Функция для чтения размера файла из начала файла
+//Р”РµРєРѕРґРёСЂРѕРІС‰РёРє : СЃС‡РёС‚Р°С‚СЊ С‚Р°Р±Р»РёС†Сѓ С‡Р°СЃС‚РѕС‚
+//
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ С‡С‚РµРЅРёСЏ СЂР°Р·РјРµСЂР° С„Р°Р№Р»Р° РёР· РЅР°С‡Р°Р»Р° С„Р°Р№Р»Р°
 uint32_t readFileSizeFromFile(FILE* file) {
     uint32_t fileSize;
     fread(&fileSize, sizeof(uint32_t), 1, file);
     return fileSize;
 }
-// Функция для декодирования файла
-// Функция для декодирования файла
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РґРµРєРѕРґРёСЂРѕРІР°РЅРёСЏ С„Р°Р№Р»Р°
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РґРµРєРѕРґРёСЂРѕРІР°РЅРёСЏ С„Р°Р№Р»Р°
 void decodeFile(const char* inputFilename, const char* outputFilename, Node* huffmanTree) {
+    if (huffmanTree == NULL) {
+        fprintf(stderr, "Huffman tree is NULL");
+        return;
+    }
+
     FILE* inputFile = fopen(inputFilename, "rb");
     if (inputFile == NULL) {
         perror("Error opening input file");
         return;
     }
 
-    // Чтение размера файла из начала файла
+    // Р§С‚РµРЅРёРµ СЂР°Р·РјРµСЂР° С„Р°Р№Р»Р° РёР· РЅР°С‡Р°Р»Р° С„Р°Р№Р»Р°
     uint32_t fileSize = readFileSizeFromFile(inputFile);
 
     FILE* outputFile = fopen(outputFilename, "wb");
@@ -227,10 +235,10 @@ void decodeFile(const char* inputFilename, const char* outputFilename, Node* huf
     unsigned char byte;
     uint32_t decodedSize = 0;
     while (decodedSize < fileSize && fread(&byte, sizeof(unsigned char), 1, inputFile) == 1) {
-        // Перемещение по дереву Хаффмана в зависимости от бита
+        // РџРµСЂРµРјРµС‰РµРЅРёРµ РїРѕ РґРµСЂРµРІСѓ РҐР°С„С„РјР°РЅР° РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ Р±РёС‚Р°
         currentNode = (byte == '0') ? currentNode->left : currentNode->right;
 
-        // Если достигнут лист дерева, записываем байт и возвращаемся к корню
+        // Р•СЃР»Рё РґРѕСЃС‚РёРіРЅСѓС‚ Р»РёСЃС‚ РґРµСЂРµРІР°, Р·Р°РїРёСЃС‹РІР°РµРј Р±Р°Р№С‚ Рё РІРѕР·РІСЂР°С‰Р°РµРјСЃСЏ Рє РєРѕСЂРЅСЋ
         if (currentNode->left == NULL && currentNode->right == NULL) {
             fwrite(&currentNode->byte, sizeof(unsigned char), 1, outputFile);
             currentNode = huffmanTree;
@@ -240,4 +248,122 @@ void decodeFile(const char* inputFilename, const char* outputFilename, Node* huf
 
     fclose(inputFile);
     fclose(outputFile);
+}
+
+
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ СѓРїР°РєРѕРІРєРё Р±РёС‚РѕРІ РІ Р±Р°Р№С‚С‹ Рё Р·Р°РїРёСЃРё РІ С„Р°Р№Р»
+void packBitsAndWriteToFile(const char* outputFilename, const char** codes, const unsigned char* data, long fileSize) {
+    FILE* outputFile = fopen(outputFilename, "wb");
+    if (outputFile == NULL) {
+        perror("Error opening output file");
+        return;
+    }
+
+    // Р—Р°РїРёСЃС‹РІР°РµРј СЂР°Р·РјРµСЂ С„Р°Р№Р»Р° РІ Р±Р°Р№С‚Р°С… РІ С„Р°Р№Р»
+    writeFileSizeToFile(outputFile, fileSize);
+
+    // РЈРїР°РєРѕРІРєР° Р±РёС‚РѕРІ РІ Р±Р°Р№С‚С‹ Рё Р·Р°РїРёСЃСЊ РІ С„Р°Р№Р»
+    unsigned char packedByte = 0;
+    int bitCount = 0;
+    for (long i = 0; i < fileSize; ++i) {
+        const char* code = codes[data[i]];
+        for (size_t j = 0; j < strlen(code); ++j) {
+            packedByte <<= 1; // РЎРґРІРёРі РЅР° РѕРґРёРЅ Р±РёС‚ РІР»РµРІРѕ
+            if (code[j] == '1') {
+                packedByte |= 1; // РЈСЃС‚Р°РЅРѕРІРєР° РјР»Р°РґС€РµРіРѕ Р±РёС‚Р° РІ 1
+            }
+            bitCount++;
+            if (bitCount == 8) {
+                // Р—Р°РїРёСЃС‹РІР°РµРј РїРѕР»РЅС‹Р№ Р±Р°Р№С‚ РІ С„Р°Р№Р»
+                fwrite(&packedByte, sizeof(unsigned char), 1, outputFile);
+                packedByte = 0;
+                bitCount = 0;
+            }
+        }
+    }
+
+    // Р•СЃР»Рё РѕСЃС‚Р°Р»РёСЃСЊ РЅРµР·Р°РїРёСЃР°РЅРЅС‹Рµ Р±РёС‚С‹, РґРѕРїРѕР»РЅРёРј РёС… РЅСѓР»СЏРјРё Рё Р·Р°РїРёС€РµРј
+    if (bitCount > 0) {
+        packedByte <<= (8 - bitCount); // Р”РѕРїРѕР»РЅРёС‚СЊ РЅСѓР»СЏРјРё РґРѕ РїРѕР»РЅРѕРіРѕ Р±Р°Р№С‚Р°
+        fwrite(&packedByte, sizeof(unsigned char), 1, outputFile);
+    }
+
+    fclose(outputFile);
+}
+
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ С‡С‚РµРЅРёСЏ СѓРїР°РєРѕРІР°РЅРЅС‹С… Р±Р°Р№С‚ РёР· С„Р°Р№Р»Р° Рё СЂР°СЃРїР°РєРѕРІРєРё Р±РёС‚РѕРІ
+void readPackedBytesAndUnpackBits(const char* inputFilename, const char* outputFilename, Node* huffmanTree) {
+    if (huffmanTree == NULL) {
+        fprintf(stderr, "Huffman tree is NULL");
+        return;
+    }
+
+    FILE* inputFile = fopen(inputFilename, "rb");
+    if (inputFile == NULL) {
+        perror("Error opening input file");
+        return;
+    }
+
+    // Р§С‚РµРЅРёРµ СЂР°Р·РјРµСЂР° С„Р°Р№Р»Р° РёР· РЅР°С‡Р°Р»Р° С„Р°Р№Р»Р°
+    uint32_t fileSize = readFileSizeFromFile(inputFile);
+
+    FILE* outputFile = fopen(outputFilename, "wb");
+    if (outputFile == NULL) {
+        perror("Error opening output file");
+        fclose(inputFile);
+        return;
+    }
+
+    Node* currentNode = huffmanTree;
+    unsigned char byte;
+    uint32_t decodedSize = 0;
+    while (decodedSize < fileSize && fread(&byte, sizeof(unsigned char), 1, inputFile) == 1) {
+        for (int i = 7; i >= 0; --i) {
+            // РџСЂРѕРІРµСЂРєР° РєР°Р¶РґРѕРіРѕ Р±РёС‚Р° РІ Р±Р°Р№С‚Рµ
+            currentNode = (byte & (1 << i)) ? currentNode->right : currentNode->left;
+
+            // Р•СЃР»Рё РґРѕСЃС‚РёРіРЅСѓС‚ Р»РёСЃС‚ РґРµСЂРµРІР°, Р·Р°РїРёСЃС‹РІР°РµРј Р±Р°Р№С‚ Рё РІРѕР·РІСЂР°С‰Р°РµРјСЃСЏ Рє РєРѕСЂРЅСЋ
+            if (currentNode->left == NULL && currentNode->right == NULL) {
+                fwrite(&currentNode->byte, sizeof(unsigned char), 1, outputFile);
+                currentNode = huffmanTree;
+                decodedSize++;
+            }
+
+            if (decodedSize >= fileSize) {
+                break;
+            }
+        }
+    }
+
+    fclose(inputFile);
+    fclose(outputFile);
+}
+int main() {
+    const char* inputFilename = "in.txt";
+    const char* encodedFilename = "out.bin";
+    const char* decodedFilename = "decoded.txt";
+    const char* packedFilename = "packed.bin";
+    long fileSize;
+    unsigned char* data = read_file_binary(inputFilename, &fileSize);
+    if (data == NULL) {
+        return 1;
+    }
+    ByteFrequency frequencies[BYTE_RANGE];
+    count_and_sort_byte_frequencies(data, fileSize, frequencies);
+    Node* huffmanTree = buildHuffmanTree(frequencies, BYTE_RANGE);
+
+    char* codes[BYTE_RANGE] = { 0 };
+    char haffmancode[BYTE_RANGE] = { 0 };
+    encodeHuffmanTree(huffmanTree, haffmancode, codes, 0);
+    encodeFile(inputFilename, encodedFilename, huffmanTree, codes);
+    decodeFile(encodedFilename, decodedFilename, huffmanTree);
+
+    packBitsAndWriteToFile(packedFilename, (const char**)codes, data, fileSize);
+    readPackedBytesAndUnpackBits(packedFilename, "unpacked.txt", huffmanTree);
+    freeHuffmanTree(huffmanTree);
+    for (int i = 0; i < BYTE_RANGE; ++i) {
+        free(codes[i]);
+    }
+    free(data);
+    return 0;
 }
